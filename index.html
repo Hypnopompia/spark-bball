@@ -1,0 +1,249 @@
+<!--
+
+/**
+ ******************************************************************************
+ * @file    index.html
+ * @author  TJ Hunter (tjhunter@gmail.com)
+ * @source  https://github.com/Hypnopompia/spark-bball
+ * @version V1.0.0
+ * @date    04/08/2014
+ ******************************************************************************
+The MIT License (MIT)
+
+Copyright (c) 2014 TJ Hunter
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ ******************************************************************************
+ */
+
+-->
+<html>
+	<head>
+		<title>GroSocial Basketball</title>
+		<script src="https://code.jquery.com/jquery-1.11.0.min.js"></script>
+		<!-- The Digital Dream Font can be found at http://www.fontsquirrel.com/fonts/Digital-dream -->
+		<link rel="stylesheet" href="webfonts/digitaldream_regular_macroman/stylesheet.css" type="text/css" charset="utf-8" />
+
+		<style type="text/css">
+			body {
+				font-family: 'Gotham SSm A', 'Gotham SSm B', 'Open Sans', 'Helvetica Neueue', Helvetica, Arial, sans-serif;
+				background: #424242;
+				color: white;
+			}
+
+			.clockContainer {
+				margin-top: 25px;
+				width: 500px;
+				height: 190px;
+				margin-left: auto;
+				margin-right: auto;
+				border: 5px solid #FFFFFF;
+				border-radius: 20px;
+			}
+
+			.clock {
+				padding: 15px;
+				margin-top: 25px;
+				margin-left: 25px;
+				background: #000;
+				font-family: 'digital_dreamregular', 'monospace';
+				color: #CC0000;
+				font-size: 100px;
+				width: 420px;
+				text-align: center;
+			}
+
+			.scoreContainer {
+				width: 1070px;
+				margin-top: 50px;
+				display: block;
+				margin-left: auto;
+				margin-right: auto;
+			}
+
+			.player1, .player2 {
+				border: 5px solid #FFFFFF;
+				border-radius: 20px;
+				width: 500px;
+				height: 350px;
+				float: left;
+				text-align: center;
+				font-size: 100px;
+			}
+
+			.player2 {
+				margin-left: 50px;
+			}
+
+			.score {
+				padding: 15px;
+				margin-left: 25px;
+				background: #000;
+				font-family: 'digital_dreamregular', 'monospace';
+				color: #ff7f00;
+				font-size: 135px;
+				width: 420px;
+				text-align: right;
+			}
+
+			.winner {
+				font-size: 55px;
+				color: #FF0000;
+			}
+
+			.clear {
+				clear: both;
+			}
+		</style>
+	</head>
+
+	<body>
+		Start Game:
+		<button class="startGameBtn" data-duration="30">30 seconds</button>
+		<button class="startGameBtn" data-duration="60">1 minute</button>
+		<button class="startGameBtn" data-duration="180">3 minutes</button>
+		<button class="startGameBtn" data-duration="300">5 minutes</button>
+
+		<!-- <button class="resetBtn">Reset</button> -->
+
+		<div class="clockContainer">
+			<div class="clock">00:00</div>
+		</div>
+
+		<div class="scoreContainer">
+			<div class="player1">
+				Home<br/>
+				<div class="p1Score score">0</div>
+				<div class="winner p1Winner">Winner!</div>
+			</div>
+			<div class="player2">
+				Visitor<br/>
+				<div class="p2Score score">0</div>
+				<div class="winner p2Winner">Winner!</div>
+			</div>
+			<div class="clear"></div>
+		</div>
+
+		<script>
+			$(function(){
+				var deviceID = "<PUT YOUR DEVICE ID HERE>";
+				var accessToken = "<PUT YOUR ACCESS TOKEN HERE>";
+				var eventSource = new EventSource("https://api.spark.io/v1/devices/" + deviceID + "/events/?access_token=" + accessToken);
+				var playing = false;
+				var clockInterval;
+				var startCountdown = 10;
+				var pointsPerEvent = 2;
+
+				$('.winner').hide();
+
+				function formatTime(seconds) {
+					var min, sec, time = "";
+
+					min = parseInt(seconds / 60);
+					sec = parseInt(seconds % 60);
+
+					if (isNaN(min)) {
+						min = 0;
+					}
+
+					if (isNaN(sec)) {
+						sec = 0;
+					}
+
+					if (min < 10) {
+						time = time + "0" + min;
+					} else {
+						time = time + min;
+					}
+
+					time = time + ":";
+
+					if (sec < 10) {
+						time = time + "0" + sec;
+					} else {
+						time = time + sec;
+					}
+
+
+					return time;
+				}
+
+				eventSource.addEventListener('spark-bball', function(e) {
+					var parsedData = JSON.parse(e.data);
+					var player = parsedData.data;
+					if (playing) { // Only increment scores if we're currently playing
+						$('.' + player + 'Score').html( (parseInt( $('.' + player + 'Score').html() ) + pointsPerEvent) );
+					}
+				});
+
+				$(".resetBtn").on('click', function(){
+					$('.score').html('0');
+				});
+
+				$(".startGameBtn").on('click', function(){
+					var gameDuration = $(this).attr('data-duration') * 1000; 
+					var gameStartTime = new Date().getTime() + (startCountdown * 1000) + 999;
+					var gameEndTime = gameStartTime + gameDuration;
+
+					$('.winner').hide();
+					$('.clock').html(startCountdown);
+					$('.score').html('0');
+
+					clearInterval(clockInterval);
+					clockInterval = setInterval(function () {
+						var currentTime = new Date().getTime();
+
+						if (currentTime < gameStartTime) { // counting down to the game start time
+							var seconds = parseInt( (gameStartTime - currentTime) / 1000 );
+							if (seconds == 0) {
+								$('.clock').html('GO!');
+								if (!playing) {
+									playing = true;
+								}
+							} else {
+								$('.clock').html(seconds);
+							}
+						} else if (currentTime < gameEndTime) { // counting down to the game end time
+							var seconds = parseInt( (gameEndTime - currentTime) / 1000 );
+							var time = formatTime(seconds);
+							$('.clock').html(time);
+						} else { // game over
+							clearInterval(clockInterval);
+							$('.clock').html('OVER');
+							playing = false;
+							var p1Score = parseInt( $('.p1Score').html() );
+							var p2Score = parseInt( $('.p2Score').html() );
+
+							if (p1Score > p2Score) {
+								$('.p1Winner').html('Winner!').show();
+							} else if (p1Score < p2Score) {
+								$('.p2Winner').html('Winner!').show();
+							} else if (p1Score == p2Score) {
+								$('.p1Winner').html('Tie!').show();
+								$('.p2Winner').html('Tie!').show();
+							}
+						}
+
+					}, 100);
+
+				});
+			});
+		</script>
+	</body>
+</html>
